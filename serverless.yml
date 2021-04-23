@@ -1,0 +1,63 @@
+# serverless.yml
+
+service: ti-api-stocks
+
+custom:
+  params:
+    userPoolArn: ${ssm:/${opt:stage, 'dev'}/auth/cognito/userPool/arn}
+    cognitoUserPool: ${ssm:/${opt:stage, 'dev'}/auth/cognito/userPool/id}
+    cognitoClientId: ${ssm:/${opt:stage, 'dev'}/auth/cognito/client/id}
+    stocksTable: ${ssm:/${opt:stage, 'dev'}/dynamoDB/table/stocks}
+    stocksTableArn: ${ssm:/${opt:stage, 'dev'}/dynamoDB/table/stocks/arn}
+    authApi: https://nbvxij0q0h.execute-api.us-east-1.amazonaws.com/${opt:stage, 'dev'}
+  corsMethods: 'GET,OPTIONS,POST'
+  corsHeaders: 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'
+  corsOrigins: '*'
+  serverless-offline:
+    httpPort: 5052
+    lambdaPort: 5053
+    host: 0.0.0.0
+
+provider:
+  name: aws
+  runtime: nodejs12.x
+  stage: ${opt:stage, 'dev'}
+  region: us-east-1
+  environment:
+    STOCKS_TABLE: '${self:custom.params.stocksTable}'
+  stackTags:
+    "ti:app": "Toro Investimentos"
+    "ti:stage-name": ${opt:stage, 'dev'}
+  iamRoleStatements:
+    - Effect: 'Allow'
+      Action:
+        - 'dynamodb:BatchGetItem'
+        - 'dynamodb:BatchWriteItem'
+        - 'dynamodb:GetItem'
+        - 'dynamodb:GetRecords'
+        - 'dynamodb:PutItem'
+        - 'dynamodb:Query'
+        - 'dynamodb:Scan'
+        - 'dynamodb:UpdateItem'
+      Resource:
+        - '${self:custom.params.stocksTableArn}'
+functions:
+  app:
+    handler: index.handler
+    description: API for manage stocks
+    events:
+      - http:
+          method: GET
+          path: '/stocks'
+          cors: true
+          private: false
+package:
+  exclude:
+    - ./**
+  include:
+    - node_modules/**
+    - src/**
+    - ./index.js
+
+plugins:
+  - serverless-offline
